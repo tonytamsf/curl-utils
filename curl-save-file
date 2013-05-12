@@ -1,0 +1,8 @@
+#!/home/y/bin/perl -w
+
+use File::Basename;
+my $S_url = shift;
+my $S_basename = lc(basename($S_url));
+print "$S_basename\n";
+system("curl $S_url > $S_basename");
+

@@ -1,0 +1,143 @@
+#!/usr/local/bin/perl -w
+# -*- Perl -*- 
+
+# RCS info
+#  $Author$
+#  $Date$
+#  $Id$
+#  $Source$
+#
+
+use strict;
+use LWP::UserAgent;
+use HTTP::Request::Common;
+use HTTP::Response;
+use LWP::Simple;
+my $S_CMD_CAPTURE = '/home/tonytam/bin/get_search_top.sh';
+
+$| = 1;
+#_---------------------------------------------------------------------
+my $S_orig_url;
+my $S_host;
+my %H_url_err;
+BEGIN {
+    $S_orig_url       = shift;
+    unless(defined($S_orig_url)) {
+	print "Usage: watch_web.pl url\n";
+	exit(1);
+    }
+    ($S_host)         = ($S_orig_url =~ m|http://([^/]+)/|);
+}
+
+use lib '/home/yahoo/lib/perl';
+use RunMutex ("/home/tonytam/bin/.watch_url.$S_host", "verbose");
+
+my $S_num_errors     = 0;  # Just a running counter
+my $S_max_num_errors = 10;  # number of times we will tolerate the page to be slow
+my $S_tolerance      = 30; # number of seconds for the page to return
+my $S_get_html       = '';
+my $S_elapse         = 0;
+my $S_mirrors        = `cat /home/yahoo/mirrors/$S_host`;
+
+my $S_pager          = 'page-tonytam@yahoo-inc.com';
+
+#----------------------------------------------------------------------
+my %H_html;
+
+while (1) {
+    my $S_url;
+    my $S_err;
+    %H_html = ();
+    foreach my $S_ip (split /[,\n]/s, $S_mirrors) {
+	$S_ip =~ s/\s//g;
+        $S_url = $S_orig_url;
+        $S_url    =~ s/$S_host/$S_ip/;
+
+	my $S_start = time();
+
+	# Try the web page
+	# ----------------------------------------
+        print "Trying $S_url\n";
+	my $OR_UA          = LWP::UserAgent->new();
+	$OR_UA->timeout($S_tolerance);
+	my $OR_request     = GET($S_url);
+	$S_get_html = undef;
+	my $OR_response    = $OR_UA->request($OR_request);
+	
+	unless ($OR_response->is_success()) {
+	    print scalar(localtime()), " ERR: [$S_url] ",$OR_response->status_line(),$H_url_err{$S_url}, "\n";
+	    $H_url_err{$S_url}++;
+	    $S_err = $S_url . " " . $OR_response->status_line();
+
+	} else {
+	    #$H_url_err{$S_url}--;
+	    print scalar(localtime())," SUCCESS: [$S_url] ", $S_elapse, "\n";
+            my $S_html = $OR_response->as_string();
+            $S_html =~ s/^.*<html>//s;
+            $H_html{$S_url} = $S_html;
+            if (0) {
+		foreach my $S_key (keys(%H_html )) {
+		    next unless defined($H_html{$S_key});
+		    unless($H_html{$S_url} eq $H_html{$S_key}) {
+			my $i= 0;
+			while (substr($H_html{$S_url}, $i, 1) eq substr($H_html{$S_key}, $i, 1)) { 
+			    $i++;
+			}
+			print "Diff $i $S_key $S_url\n";
+			print "="x80,"\n";
+			print substr($H_html{$S_key}, $i, 100)," \n\n\n";
+			print "="x80,"\n";
+			print substr($H_html{$S_url}, $i, 100)," \n\n\n";
+			print "="x80,"\n";
+			print scalar(localtime()), " ERR: [$S_url] [$S_key] is different\n";
+			$H_url_err{$S_url}++;
+			$S_err = $S_url . " diff $S_key";
+
+		    }
+		}
+	    }
+	}
+
+
+	# Page or email someone
+	# ----------------------------------------
+	if (defined($H_url_err{$S_url}) && ($H_url_err{$S_url} > $S_max_num_errors)) {
+	    $S_err =~ s/'//gsi;
+	    my $S_cmd = "echo `date +%H:%M` ' $S_err' | /usr/bin/Mail -s '$S_host [$S_elapse]' $S_pager";
+	    print "CMD $S_cmd\n";
+	    system($S_cmd);
+	    $H_url_err{$S_url} = 0;
+	    $S_err = "";
+
+            #system($S_CMD_CAPTURE);
+	}
+
+    }
+    
+    print "Sleeping 60\n";
+    sleep 60;
+}
+1;
+
+__END__
+
+# Begin POD.
+
+=head1 NAME
+
+script.pl - description
+
+=head1 SYNOPSIS
+
+script.pl [options]
+
+=head1 OPTIONS
+
+B<help> - get usage statement.
+
+=head1 AUTHOR
+
+Tony Tam (tonytam@yahoo-inc.com)
+
+=cut
+

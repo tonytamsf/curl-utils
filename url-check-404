@@ -1,0 +1,15 @@
+#!/usr/bin/perl -w
+
+use strict;
+my $S_url = 'http://codereview.corp.ac4.yahoo.com/akamai';
+my $S_full_url = $S_url;
+
+# We expect ac4 is OOR, so 404 not found is what we want
+my $S_err = system("curl --silent --head '$S_full_url' | grep '404 Not Found'");
+
+if ($S_err) {
+    print "ERROR\n";
+} else {
+    print "OK\n";
+}
+1;

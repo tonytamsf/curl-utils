@@ -1,0 +1,33 @@
+#!/home/y/bin/perl -w
+
+use LWP::UserAgent;
+use HTTP::Request::Common;
+use HTTP::Response;
+use HTTP::Cookies;
+
+my %H_content = ();
+foreach my $S_host (`cat /home/yahoo/mirrors/story_news`)
+{
+    chomp($S_host);
+    my $OR_UA          = LWP::UserAgent->new();
+    my $OR_request =  GET("http://$S_host/news?tmpl=s&u=/static/story_promo_pl_elec/static");
+    my $OR_response = $OR_UA->request($OR_request);
+    $H_content{$S_host} = $OR_response->content();
+    unless ($OR_response->is_success()) {
+	next;
+    }
+    print $S_host, "  ", length($H_content{$S_host}),"\n";
+}
+my $S_string = "";
+foreach my $S_host (keys(%H_content))
+{
+    if (!$S_string) {
+	$S_string = $H_content{$S_host};
+    }else {
+	if ($S_string ne $H_content{$S_host})
+	{
+	    print $S_string, "="x70, $H_content{$S_host},"\n";
+	}
+    }
+    
+}

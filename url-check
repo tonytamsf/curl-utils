@@ -1,0 +1,12 @@
+#!/usr/bin/perl
+use LWP::Simple;
+
+$url = shift;
+
+my $S_text = &LWP::Simple::head($url);
+unless(defined($S_text)) {
+ print "Error $url\n";
+ exit 1;
+} 
+
+print "Success retrieving $url\n";

@@ -1,0 +1,6 @@
+#!/home/y/bin/perl -w
+
+use strict;
+
+use URI::Escape;
+print uri_escape(shift()),"\n";
